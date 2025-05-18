@@ -1,0 +1,43 @@
+# Trivy Scan Testing v1
+
+# Basic setup. No fluff. Hardcoded target.
+
+name: Trivy Scan Testing v1
+
+# Controls when the workflow will run
+on:
+  issues:
+    types: [opened, edited]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Add permissions block at the workflow level
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+  trivy-scan-test:
+    name: Trivy Scan Testing v1
+    
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Echo current date
+        run: echo $NOW  # Show datetime
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run trivy scan action
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: 'grafana/grafana:11.3.4'
+          format: 'table'
+          vuln-type: os,library
+
+
+
+        
