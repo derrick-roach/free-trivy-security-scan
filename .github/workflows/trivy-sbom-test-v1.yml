@@ -1,0 +1,50 @@
+# Trivy SBOM Testing v1
+
+# Basic setup. No fluff. Hardcoded target.
+
+name: Trivy SBOM Testing v1
+
+# Controls when the workflow will run
+on:
+  issues:
+    types: [opened, edited]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Add permissions block at the workflow level
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+  generate-sbom:
+    name: Trivy SBOM Testing v1
+    
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Echo current date
+        run: echo $NOW  # Show datetime
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run trivy action to generate SBOM
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: 'grafana/grafana:11.3.7'
+          scan-type: 'image'
+          format: 'json'
+          output: 'dependency-results.sbom.json'
+          github-pat: ${{ secrets.GITHUB_TOKEN }} # or ${{ secrets.github_pat_name }} if you're using a PAT
+
+      - name: Upload trivy report as a GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sbom-report
+          path: '${{ github.workspace }}/dependency-results.sbom.json'
+          retention-days: 90 # 90 is the default
+
+        
