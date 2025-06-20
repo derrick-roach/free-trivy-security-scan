@@ -34,7 +34,7 @@ jobs:
       - name: Run trivy scan action
         uses: aquasecurity/trivy-action@0.30.0
         with:
-          image-ref: 'grafana/grafana:11.3.4'
+          image-ref: 'grafana/grafana:11.3.7'
           format: 'table'
           vuln-type: os,library
 
