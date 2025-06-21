@@ -73,12 +73,13 @@ jobs:
               }
             }
             
-            if (ref) {
+            // Basic validation: image reference should contain at least a colon (for tag) or slash (for registry/org)
+            if (ref && (ref.includes(':') || ref.includes('/'))) {
               console.log(`Extracted image: ${ref}`);
               core.setOutput('ref', ref);
               return ref;
             } else {
-              core.setFailed('Invalid image reference. Please edit to try again.');
+              core.setFailed('Invalid image reference format. Please provide a valid image reference like "alpine:latest" or "grafana/grafana:main"');
             }
 
       - name: Checkout
