@@ -1,0 +1,28 @@
+name: 📝 Trivy SBOM Request 📝
+description: Submit a valid image reference to generate an SBOM.
+title: "[SBOM] <your-image-ref>"
+labels: [sbom-request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 📝 Trivy SBOM Request 📝
+        Please enter the valid image reference to generate an SBOM file.
+
+  - type: input
+    id: image-ref
+    attributes:
+      label: Image Reference
+      description: Same format as `docker pull [image]` or `podman pull [image]`
+      placeholder: Ex. alpine:latest OR grafana/grafana:main
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        1️⃣ Submit this form to trigger an SBOM request. 
+        2️⃣ Results will be posted as a comment on the issue. 
+        3️⃣ It should only take 2-3 minutes to complete the action.
+        4️⃣ Simply check the issue comments in a few minutes for the results.
+        ⚠️ Please ensure that the image ref is valid and accessible. Invalid images may result in failure.
