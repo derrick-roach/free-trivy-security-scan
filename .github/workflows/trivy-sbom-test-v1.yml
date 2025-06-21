@@ -6,8 +6,8 @@ name: Trivy SBOM Testing v1
 
 # Controls when the workflow will run
 on:
-  issues:
-    types: [opened, edited]
+  # issues:
+  #   types: [opened, edited]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
