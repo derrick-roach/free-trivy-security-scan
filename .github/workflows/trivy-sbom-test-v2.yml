@@ -22,10 +22,10 @@ jobs:
   generate-sbom:
     name: Trivy SBOM Testing v2
 
-    # Check issue label and body contains a colon
+    # Check issue label and body contains Image Reference section
     if: |
       contains(github.event.issue.labels.*.name, 'sbom-request') && 
-      contains(github.event.issue.body, ':')
+      contains(github.event.issue.body, 'Image Reference')
     
     runs-on: ubuntu-latest
 
@@ -39,17 +39,47 @@ jobs:
         with:
           script: |
             const body = context.payload.issue.body;
-            if (!body) return;
+            if (!body) {
+              core.setFailed('Issue body is empty');
+              return;
+            }
             
-            // Extract image reference
-            const ref = body.trim();
+            // Extract image reference from the form field
+            // Look for the "Image Reference" section and get the value after it
+            const lines = body.split('\n');
+            let imageRefIndex = -1;
             
-            if (ref) {
+            // Find the line that contains "Image Reference"
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].includes('Image Reference')) {
+                imageRefIndex = i;
+                break;
+              }
+            }
+            
+            if (imageRefIndex === -1) {
+              core.setFailed('Image Reference section not found in issue body');
+              return;
+            }
+            
+            // Look for the image reference in the lines following the "Image Reference" header
+            let ref = '';
+            for (let i = imageRefIndex + 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              // Skip empty lines and markdown formatting
+              if (line && !line.startsWith('#') && !line.startsWith('_') && !line.startsWith('*')) {
+                ref = line;
+                break;
+              }
+            }
+            
+            // Basic validation: image reference should contain at least a colon (for tag) or slash (for registry/org)
+            if (ref && (ref.includes(':') || ref.includes('/'))) {
               console.log(`Extracted image: ${ref}`);
               core.setOutput('ref', ref);
               return ref;
             } else {
-              core.setFailed('Invalid image. Please edit to try again.');
+              core.setFailed('Invalid image reference format. Please provide a valid image reference like "alpine:latest" or "grafana/grafana:main"');
             }
 
       - name: Checkout
