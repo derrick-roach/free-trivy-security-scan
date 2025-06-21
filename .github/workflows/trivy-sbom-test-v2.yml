@@ -141,9 +141,9 @@ jobs:
               issue_number: issueNumber,
               body: `## 📝 Trivy SBOM Results 📝
 
-            ## 🌐 SBOM > ${imageRef}
+            ## SBOM 👉 ${imageRef}
 
-            <br><br>
+            <br>
 
             👇 Get the full report and details with the links below.
             
