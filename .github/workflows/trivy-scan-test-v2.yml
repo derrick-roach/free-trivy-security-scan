@@ -87,7 +87,7 @@ jobs:
         with:
           ref: main
 
-      - name: Run trivy scan action
+      - name: Run trivy action for security scan
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ steps.extract-image.outputs.ref }}
@@ -140,13 +140,13 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `## 🔒 Trivy Security Scan Results 🔒
+              body: `## 🔎 Trivy Security Scan Results 🔍
 
             ## Security Scan 👉 ${imageRef}
 
             <br>
 
-            👇 Get the full security report and details with the links below.
+            👇 Get the full report and details with the links below.
             
             ### 🔗 Links
             - [🔍 See the workflow run and artifact](${artifactLink})
