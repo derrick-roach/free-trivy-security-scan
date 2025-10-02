@@ -1,0 +1,160 @@
+# Trivy Scan Testing v2
+
+# WIP. Use image from GitHub Issue as target, 
+# update the issue with the security scan results, 
+# and link to the artifact for download.
+
+name: Trivy Scan Testing v2
+
+# Controls when the workflow will run
+on:
+  issues:
+    types: [opened, edited]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Add permissions block at the workflow level
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+  trivy-scan-test:
+    name: Trivy Scan Testing v2
+
+    # Check issue label and body contains Image Reference section
+    if: |
+      contains(github.event.issue.labels.*.name, 'security-scan-request') && 
+      contains(github.event.issue.body, 'Image Reference')
+    
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Echo current date
+        run: echo $NOW  # Show datetime
+
+      - name: Extract image ref from issue
+        id: extract-image
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const body = context.payload.issue.body;
+            if (!body) {
+              core.setFailed('Issue body is empty');
+              return;
+            }
+            
+            // Extract image reference from the form field
+            // Look for the "Image Reference" section and get the value after it
+            const lines = body.split('\n');
+            let imageRefIndex = -1;
+            
+            // Find the line that contains "Image Reference"
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].includes('Image Reference')) {
+                imageRefIndex = i;
+                break;
+              }
+            }
+            
+            if (imageRefIndex === -1) {
+              core.setFailed('Image Reference section not found in issue body');
+              return;
+            }
+            
+            // Look for the image reference in the lines following the "Image Reference" header
+            let ref = '';
+            for (let i = imageRefIndex + 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              // Skip empty lines and markdown formatting
+              if (line && !line.startsWith('#') && !line.startsWith('_') && !line.startsWith('*')) {
+                ref = line;
+                break;
+              }
+            }
+            
+            // Basic validation: image reference should contain at least a colon (for tag) or slash (for registry/org)
+            if (ref && (ref.includes(':') || ref.includes('/'))) {
+              console.log(`Extracted image: ${ref}`);
+              core.setOutput('ref', ref);
+              return ref;
+            } else {
+              core.setFailed('Invalid image reference format. Please provide a valid image reference like "alpine:latest" or "grafana/grafana:main"');
+            }
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run trivy scan action
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.extract-image.outputs.ref }}
+          scan-type: 'image'
+          format: 'json'
+          output: 'security-results.json'
+          vuln-type: os,library
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload trivy report as a GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-security-report
+          path: '${{ github.workspace }}/security-results.json'
+          retention-days: 90 # 90 is the default
+
+      - name: Comment on issue with results
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const imageRef = '${{ steps.extract-image.outputs.ref }}';
+            const runId = context.runId;
+            const repoOwner = context.repo.owner;
+            const repoName = context.repo.repo;
+
+            // Fetch artifacts for this workflow run
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: repoOwner,
+              repo: repoName,
+              run_id: runId
+            });
+
+            // Find the trivy artifact
+            const trivyArtifact = artifacts.data.artifacts.find(artifact => 
+              artifact.name === 'trivy-security-report'
+            );
+
+            // Create links to the workflow run's artifacts
+            const artifactId = trivyArtifact ? trivyArtifact.id : null;
+            const artifactLink = `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}`;
+            
+            // Direct download link if we found the artifact ID
+            const directDownloadLink = artifactId ? 
+            `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}/artifacts/${artifactId}` : null;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `## 🔒 Trivy Security Scan Results 🔒
+
+            ## Security Scan 👉 ${imageRef}
+
+            <br>
+
+            👇 Get the full security report and details with the links below.
+            
+            ### 🔗 Links
+            - [🔍 See the workflow run and artifact](${artifactLink})
+            - [⬇️ Direct download of the full security report](${directDownloadLink})
+            
+            🚀`
+            });
+
+
+
+        

@@ -1,0 +1,28 @@
+name: 🔒 Trivy Security Scan Request 🔒
+description: Submit a valid image reference to generate a security vulnerability scan.
+title: "[Security Scan] <your-image-ref>"
+labels: [security-scan-request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🔒 Trivy Security Scan Request 🔒
+        Please enter the valid image reference to generate a security vulnerability scan.
+
+  - type: input
+    id: image-ref
+    attributes:
+      label: Image Reference
+      description: Same format as `docker pull [image]` or `podman pull [image]`
+      placeholder: Ex. alpine:latest OR grafana/grafana:main
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        1️⃣ Submit this form to trigger a security scan request. 
+        2️⃣ Results will be posted as a comment on the issue. 
+        3️⃣ It should only take 2-3 minutes to complete the action.
+        4️⃣ Simply check the issue comments in a few minutes for the results.
+        ⚠️ Please ensure that the image ref is valid and accessible. Invalid images may result in failure.
