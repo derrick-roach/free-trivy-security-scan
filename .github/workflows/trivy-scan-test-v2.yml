@@ -97,12 +97,55 @@ jobs:
           vuln-type: os,library
           github-pat: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run trivy action for table format report
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ steps.extract-image.outputs.ref }}
+          scan-type: 'image'
+          format: 'table'
+          output: 'trivy-report'
+          vuln-type: os,library
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload trivy report as a GitHub artifact
         uses: actions/upload-artifact@v4
         with:
           name: trivy-security-report
           path: '${{ github.workspace }}/security-results.json'
           retention-days: 90 # 90 is the default
+
+      - name: Upload trivy table report as a GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-table-report
+          path: '${{ github.workspace }}/trivy-report'
+          retention-days: 90 # 90 is the default
+
+      - name: Extract report summary from trivy-report
+        id: extract-summary
+        run: |
+          if [ -f "trivy-report" ]; then
+            # Extract the summary section from the table report
+            # Look for vulnerability counts and summary information
+            summary=$(head -50 trivy-report | grep -E "(Total:|CRITICAL|HIGH|MEDIUM|LOW|UNKNOWN)" | head -20)
+            
+            # If no summary found, take first 20 lines as fallback
+            if [ -z "$summary" ]; then
+              summary=$(head -20 trivy-report)
+            fi
+            
+            # Escape special characters for multiline output
+            {
+              echo 'summary<<EOF'
+              echo "$summary"
+              echo 'EOF'
+            } >> $GITHUB_OUTPUT
+            
+            echo "Summary extracted successfully"
+          else
+            echo "trivy-report file not found"
+            echo 'summary=No report summary available' >> $GITHUB_OUTPUT
+          fi
 
       - name: Comment on issue with results
         if: github.event_name == 'issues'
@@ -115,6 +158,7 @@ jobs:
             const runId = context.runId;
             const repoOwner = context.repo.owner;
             const repoName = context.repo.repo;
+            const reportSummary = `${{ steps.extract-summary.outputs.summary }}`;
 
             // Fetch artifacts for this workflow run
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -123,18 +167,26 @@ jobs:
               run_id: runId
             });
 
-            // Find the trivy artifact
-            const trivyArtifact = artifacts.data.artifacts.find(artifact => 
+            // Find the trivy artifacts
+            const trivyJsonArtifact = artifacts.data.artifacts.find(artifact => 
               artifact.name === 'trivy-security-report'
+            );
+            
+            const trivyTableArtifact = artifacts.data.artifacts.find(artifact => 
+              artifact.name === 'trivy-table-report'
             );
 
             // Create links to the workflow run's artifacts
-            const artifactId = trivyArtifact ? trivyArtifact.id : null;
+            const jsonArtifactId = trivyJsonArtifact ? trivyJsonArtifact.id : null;
+            const tableArtifactId = trivyTableArtifact ? trivyTableArtifact.id : null;
             const artifactLink = `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}`;
             
-            // Direct download link if we found the artifact ID
-            const directDownloadLink = artifactId ? 
-            `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}/artifacts/${artifactId}` : null;
+            // Direct download links if we found the artifact IDs
+            const jsonDownloadLink = jsonArtifactId ? 
+            `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}/artifacts/${jsonArtifactId}` : null;
+            
+            const tableDownloadLink = tableArtifactId ? 
+            `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}/artifacts/${tableArtifactId}` : null;
 
             github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -146,11 +198,17 @@ jobs:
 
             <br>
 
+            ### 📊 Report Summary
+            \`\`\`
+            ${reportSummary}
+            \`\`\`
+
             👇 Get the full report and details with the links below.
             
             ### 🔗 Links
-            - [🔍 See the workflow run and artifact](${artifactLink})
-            - [⬇️ Direct download of the full security report](${directDownloadLink})
+            - [🔍 See the workflow run and artifacts](${artifactLink})
+            - [⬇️ Download JSON security report](${jsonDownloadLink})
+            - [⬇️ Download table format report](${tableDownloadLink})
             
             🚀`
             });
